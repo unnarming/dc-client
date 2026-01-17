@@ -1,5 +1,5 @@
 # Config
-- ``copy /dc_client/config.json into the root directory of the exe``
+- copy ``/dc_client/config.json`` into the root directory of the exe
 - ``token=<discord token>``
 - ``subscriptions: follow provided format~``
 
