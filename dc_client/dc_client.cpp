@@ -11,19 +11,20 @@
 using namespace ultralight;
 
 int main() {
-    std::ifstream config_file("config.json");
-    nlohmann::json config = nlohmann::json::parse(config_file);
+    auto dir = get_exe_dir().append("config.json");
+    std::ifstream config_file(dir);
 
-    std::string token = config.value("token", "");
-    Subscriptions subscriptions = Subscriptions(config["subscriptions"]);
+    nlohmann::json cfg = nlohmann::json::parse(config_file);
+
+    std::string token = cfg.value("token", "");
+    Subscriptions subscriptions = Subscriptions(cfg["subscriptions"]);
+	std::cout << "test" << std::endl;
 
 	MessageWebsocketAuth auth(token, subscriptions);
 
 	MessageSocket socket(auth);
 	socket.connect();
-
-    std::cin.get();
-    /*
+    
     Settings settings;
     settings.file_system_path = "./";
 
@@ -51,5 +52,4 @@ int main() {
     app->Run();
 
     return 0;
-    */
 }

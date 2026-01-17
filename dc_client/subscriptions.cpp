@@ -1,7 +1,7 @@
 #include "subscriptions.h"
 
 Subscriptions::Subscriptions(nlohmann::json json) {
-    for (auto& subscription : json["subscriptions"]) {
+    for (auto& subscription : json) {
         subscriptions.push_back(Subscription(subscription["guild_id"], subscription["channel_ids"]));
     }
 }

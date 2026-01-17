@@ -1,5 +1,6 @@
 #include "misc.h"
 #include <random>
+#include <windows.h>
 
 std::string generate_uuid4() {
 	static std::random_device rd;
@@ -15,4 +16,10 @@ std::string generate_uuid4() {
 		}
 	}
 	return uuid;
+}
+
+std::filesystem::path get_exe_dir() {
+	char buffer[MAX_PATH];
+	GetModuleFileNameA(NULL, buffer, MAX_PATH);
+	return std::filesystem::path(buffer).parent_path();
 }

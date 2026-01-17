@@ -1,5 +1,5 @@
 # Config
-- copy ``/dc_client/config.json`` into the root directory of the exe
+- copy ``config.json`` into the root directory of the exe
 - ``token=<discord token>``
 - ``subscriptions: follow provided format~``
 
@@ -27,4 +27,3 @@
 
 ## Preprocessor Definitions
 - ``_WIN32_WINNT=0x0A00``
-a
