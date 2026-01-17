@@ -1,3 +1,9 @@
+# Config
+## ``copy /dc_client/config.json into the root directory of the exe``
+### ``token=<discord token>``
+### ``subscriptions: follow provided format~``
+
+# Project Setup
 ## packages
 
 ``vcpkg install boost-beast boost-asio zlib openssl nlohmann-json``
