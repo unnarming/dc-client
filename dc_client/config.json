@@ -1,0 +1,9 @@
+{
+    "token": "",
+    "subscriptions": [
+        {
+            "guild_id": "guild id",
+            "channel_ids": ["channel ids", "receives typing events etc."]
+        }
+    ]
+}
