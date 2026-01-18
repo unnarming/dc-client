@@ -4,16 +4,30 @@
 #include <openssl/err.h>
 #include <mutex>
 
-MessageSocket::MessageSocket(MessageWebsocketAuth auth) : auth(auth), ssl_ctx(ssl::context::tlsv12_client) {
-    decompressor = {};
-    inflateInit2(&decompressor, 15);
-    decompressed_buffer.resize(65536);
-
+Socket::Socket(dc::Config config) : config(config) {
     ssl_ctx.set_default_verify_paths();
     ssl_ctx.set_verify_mode(ssl::verify_peer);
 }
 
-std::string MessageSocket::decompress(const std::vector<uint8_t>& data) {
+void Socket::handle_connection() {
+    throw std::runtime_error("Not implemented");
+}
+
+void ZlibDecomp::init() {
+    decompressor = {};
+    inflateInit2(&decompressor, 15);
+    decompressed_buffer.resize(65536);
+}
+
+void ZlibDecomp::close() {
+    inflateEnd(&decompressor);
+}
+
+ZlibDecomp::ZlibDecomp(websocket::stream<beast::ssl_stream<tcp::socket>>* ws) : ws(ws) {
+    init();
+}
+
+std::string ZlibDecomp::decompress(const std::vector<uint8_t>& data) {
     std::string result;
 
     decompressor.next_in = const_cast<Bytef*>(data.data());
@@ -35,9 +49,9 @@ std::string MessageSocket::decompress(const std::vector<uint8_t>& data) {
     return result;
 }
 
-nlohmann::json MessageSocket::read_message() {
+nlohmann::json ZlibDecomp::read_message() {
     beast::flat_buffer buffer;
-    ws.read(buffer);
+    ws->read(buffer);
 
     std::string raw = beast::buffers_to_string(buffer.data());
     std::vector<uint8_t> bytes(raw.begin(), raw.end());
@@ -45,15 +59,19 @@ nlohmann::json MessageSocket::read_message() {
     return nlohmann::json::parse(decompressed_data);
 }
 
-void MessageSocket::send_json(const nlohmann::json& json) {
+void Socket::send_json(const nlohmann::json& json) {
     std::lock_guard<std::mutex> lock(mutex);
     std::string msg = json.dump();
     ws.write(net::buffer(msg));
 }
 
+MessageSocket::MessageSocket(dc::Config config) 
+    : Socket(config), zlib_decomp(&ws), auth(MessageWebsocketAuth(config.token, &config.subscriptions)) {
+}
+
 void MessageSocket::heartbeat(MessageWebsocketAuth* auth) {
     while (true) {
-        auto hbeat = auth->get_heartbeat();
+        auto hbeat = auth->heartbeat;
         send_json(hbeat);
         std::this_thread::sleep_for(std::chrono::milliseconds(auth->heartbeat_interval));
     }
@@ -61,7 +79,7 @@ void MessageSocket::heartbeat(MessageWebsocketAuth* auth) {
 
 void MessageSocket::handle_connection() {
     send_json(auth.verify);
-    nlohmann::json json = read_message();
+    nlohmann::json json = zlib_decomp.read_message();
     auth.heartbeat_interval = json["d"]["heartbeat_interval"];
     
     heartbeat_thread = std::thread([this]() {
@@ -71,10 +89,10 @@ void MessageSocket::handle_connection() {
     send_json(auth.session);
     send_json(auth.subscribe);
     while (true) {
-        nlohmann::json msg = read_message();
+        nlohmann::json msg = zlib_decomp.read_message();
 
         if (msg.contains("d") && msg["d"].is_object() && msg["d"].contains("seq")) {
-            auth.sequence = msg["d"]["seq"];
+            auth.set_sequence(msg["d"]["seq"]);
         }
 
         std::string event_type = "";
@@ -92,14 +110,14 @@ void MessageSocket::handle_connection() {
     }
 }
 
-void MessageSocket::connect() {
+void Socket::connect() {
     try {
         tcp::resolver resolver(io_ctx);
 
-        auto results = resolver.resolve("gateway.discord.gg", "443");
+        auto results = resolver.resolve(config.msg_socket.host, config.msg_socket.port);
         net::connect(beast::get_lowest_layer(ws), results);
 
-        SSL_set_tlsext_host_name(ws.next_layer().native_handle(), "gateway.discord.gg");
+        SSL_set_tlsext_host_name(ws.next_layer().native_handle(), config.msg_socket.host.c_str());
 
         ws.next_layer().handshake(ssl::stream_base::client);
 
@@ -107,25 +125,10 @@ void MessageSocket::connect() {
             req.set(beast::http::field::user_agent, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) Gecko/20100101 Firefox/146.0");
         }));
 
-        ws.handshake("gateway.discord.gg", "/?encoding=json&v=9&compress=zlib-stream");
+        ws.handshake(config.msg_socket.host, config.msg_socket.url);
 
         handle_connection();
     } catch (const std::exception& e) {
         std::cout << "Error: " << e.what() << std::endl;
     }
-
-    if (heartbeat_thread.joinable()) {
-        heartbeat_thread.join();
-    }
-
-    if (ws.is_open()) {
-        ws.close(websocket::close_code::normal);
-    }
-
-    if (io_ctx.stopped()) {
-        io_ctx.stop();
-    }
-
-    inflateEnd(&decompressor);
-    inflateInit(&decompressor);
 }

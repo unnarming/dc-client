@@ -5,7 +5,7 @@
 #include <boost/beast/websocket/ssl.hpp>
 #include <boost/asio/ssl.hpp>
 #include <memory>
-#include "auth.h"
+#include "config.h"
 #include <zlib.h>
 #include <thread>
 #include <iostream>
@@ -16,31 +16,49 @@ namespace net = boost::asio;
 namespace ssl = net::ssl;
 using tcp = net::ip::tcp;
 
-struct MessageSocket {
-    MessageWebsocketAuth auth;
+struct ZlibDecomp {
+	ZlibDecomp(websocket::stream<beast::ssl_stream<tcp::socket>>* ws);
 
-    net::io_context io_ctx;
-    ssl::context ssl_ctx{ssl::context::tlsv12_client};
-    websocket::stream<beast::ssl_stream<tcp::socket>> ws{io_ctx, ssl_ctx};
+    websocket::stream<beast::ssl_stream<tcp::socket>>* ws;
 
     z_stream decompressor;
     std::vector<char> decompressed_buffer;
 
-    std::thread heartbeat_thread;
+    std::string decompress(const std::vector<uint8_t>& data);
+
+	nlohmann::json read_message();
+
+    void init();
+    void close();
+};
+
+struct Socket {
+	net::io_context io_ctx;
+	ssl::context ssl_ctx{ ssl::context::tlsv12_client };
+	websocket::stream<beast::ssl_stream<tcp::socket>> ws{ io_ctx, ssl_ctx };
 
     std::mutex mutex;
 
-    MessageSocket(MessageWebsocketAuth auth);
-
-    std::string decompress(const std::vector<uint8_t>& data);
+    dc::Config config;
 
     void send_json(const nlohmann::json& json);
 
-    nlohmann::json read_message();
+    void connect();
+
+    virtual void handle_connection() = 0;
+
+	Socket(dc::Config config);
+};
+
+struct MessageSocket : public Socket {
+    MessageWebsocketAuth auth;
+	ZlibDecomp zlib_decomp;
+
+    std::thread heartbeat_thread;
 
     void heartbeat(MessageWebsocketAuth* auth);
 
-    void handle_connection();
+    MessageSocket(dc::Config cfg);
 
-    void connect();
+    void handle_connection() override;
 };

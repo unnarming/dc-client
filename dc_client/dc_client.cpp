@@ -4,6 +4,7 @@
 #include <AppCore/Overlay.h>
 #include <iostream>
 #include "socket.h"
+#include "config.h"
 #include <fstream>
 #include "subscriptions.h"
 #include <nlohmann/json.hpp>
@@ -11,18 +12,9 @@
 using namespace ultralight;
 
 int main() {
-    auto dir = get_exe_dir().append("config.json");
-    std::ifstream config_file(dir);
+	dc::Config cfg;
 
-    nlohmann::json cfg = nlohmann::json::parse(config_file);
-
-    std::string token = cfg.value("token", "");
-    Subscriptions subscriptions = Subscriptions(cfg["subscriptions"]);
-	std::cout << "test" << std::endl;
-
-	MessageWebsocketAuth auth(token, subscriptions);
-
-	MessageSocket socket(auth);
+	MessageSocket socket(cfg);
 	socket.connect();
     
     Settings settings;

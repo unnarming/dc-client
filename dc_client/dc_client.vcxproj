@@ -137,22 +137,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="auth.cpp" />
+    <ClCompile Include="config.cpp" />
     <ClCompile Include="dc_client.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="socket.cpp" />
-    <ClCompile Include="subscription.cpp" />
-    <ClCompile Include="subscriptions.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="readme.md" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="auth.h" />
+    <ClInclude Include="config.h" />
     <ClInclude Include="misc.h" />
     <ClInclude Include="socket.h" />
-    <ClInclude Include="subscription.h" />
-    <ClInclude Include="subscriptions.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

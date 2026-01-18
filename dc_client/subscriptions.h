@@ -1,11 +1,5 @@
 #pragma once
+#include <vector>
+#include <nlohmann/json.hpp>
+#include <string>
 
-#include "subscription.h"
-
-struct Subscriptions {
-    std::vector<Subscription> subscriptions;
-
-    Subscriptions(nlohmann::json json);
-
-    nlohmann::json to_json();
-};
