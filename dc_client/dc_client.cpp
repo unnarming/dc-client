@@ -11,11 +11,21 @@
 
 using namespace ultralight;
 
+struct MessageThread {
+	std::thread socket_thread;
+
+    MessageThread(dc::Config config) {
+        socket_thread = std::thread([config]() {
+            MessageSocket socket(config);
+            socket.connect();
+        });
+	}
+};
+
 int main() {
 	dc::Config cfg;
 
-	MessageSocket socket(cfg);
-	socket.connect();
+    MessageThread mt(cfg);
     
     Settings settings;
     settings.file_system_path = "./";

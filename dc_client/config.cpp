@@ -101,6 +101,6 @@ dc::Config::Config() {
 
 	token = cfg.value("token", "");
 
-	Subscriptions subscriptions = Subscriptions(cfg["subscriptions"]);
+	subscriptions = Subscriptions(cfg["subscriptions"]);
 	msg_socket = MessageSocketConfig(cfg.value("useragent", ""), "gateway.discord.gg", "443", "/?encoding=json&v=9&compress=zlib-stream");
 }
