@@ -1,0 +1,43 @@
+<html 
+   window-width=800px
+   window-height=600px
+   window-resizable=true>
+  <head>
+    <title>Hello</title>
+    <style>
+
+      html {
+        background: darkslategray;
+      }
+
+      body {
+        vertical-align:middle;
+        text-align:center;
+      }
+
+      #message-list {
+        list-style-type: none;
+        padding: 0;
+      }
+
+    </style>
+    <script type="text/javascript">
+
+      document.ready = function() {
+        const window = Window.this.frame;
+        var value = window.nativeMessage(); 
+      }
+
+      function recvMessage(message) {
+        const list = document.getElementById("message-list");
+        const li = document.createElement("li");
+        li.innerText = message;
+        list.appendChild(li);
+      }
+
+    </script>
+  </head>
+  <body>
+    <ul id="message-list"></ul>
+  </body>
+</html>

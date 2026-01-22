@@ -10,20 +10,13 @@
 
 ## linking
 
-- additional include dirs: ``ultralight/include``
-- additional lib dirs: ``ultralight/lib``
-- additional dependancies: ``AppCore.lib`` ``Ultralight.lib`` ``UltralightCore.lib`` ``WebCore.lib``
+- additional include dirs: ``sciter/include``
 
 ## Files
 ### ./ <small>``(root directory)``</small>
-- ``AppCore.dll``
-- ``Ultralight.dll``
-- ``UltralightCore.dll``
-- ``WebCore.dll``
-
-### ./resources
-- ``cacert.pem``
-- ``icudt67l.dat``
+- ``sciter.dll``
+- ``index.html``
+- ``config.json``
 
 ## Preprocessor Definitions
 - ``_WIN32_WINNT=0x0A00``

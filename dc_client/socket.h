@@ -9,6 +9,7 @@
 #include <zlib.h>
 #include <thread>
 #include <iostream>
+#include <functional>
 
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
@@ -33,6 +34,7 @@ struct ZlibDecomp {
 };
 
 struct Socket {
+    std::atomic<bool> running = true;
 	net::io_context io_ctx;
 	ssl::context ssl_ctx{ ssl::context::tlsv12_client };
 	websocket::stream<beast::ssl_stream<tcp::socket>> ws{ io_ctx, ssl_ctx };
@@ -44,6 +46,7 @@ struct Socket {
     void send_json(const nlohmann::json& json);
 
     void connect();
+    void stop();
 
     virtual void handle_connection() = 0;
 
@@ -57,8 +60,9 @@ struct MessageSocket : public Socket {
     std::thread heartbeat_thread;
 
     void heartbeat(MessageWebsocketAuth* auth);
+	std::function<void(const std::string&)> on_message;
 
-    MessageSocket(dc::Config cfg);
+    MessageSocket(dc::Config cfg, std::function<void(const std::string&)> callback);
 
     void handle_connection() override;
 };

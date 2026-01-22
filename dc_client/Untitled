@@ -1,0 +1,3 @@
+'get': is not a member of 'sciter::om::hasset<frame>'
+syntax error: '}' was unexpected here; expected ';'
+syntax error: ')'

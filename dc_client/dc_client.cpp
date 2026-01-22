@@ -1,57 +1,82 @@
-#include <AppCore/App.h>
-#include <AppCore/Window.h>
-#include <Ultralight/Ultralight.h>
-#include <AppCore/Overlay.h>
+#include <sciter-x.h>
+#include "sciter-x-window.hpp"
 #include <iostream>
 #include "socket.h"
 #include "config.h"
 #include <fstream>
 #include "subscriptions.h"
 #include <nlohmann/json.hpp>
+#include "sciter-x-threads.h"
+#include <filesystem>
+#include "misc.h"
 
-using namespace ultralight;
+std::wstring get_html() {
+	std::filesystem::path path = get_exe_dir() / "index.html";
+	return path.wstring();
+}
 
 struct MessageThread {
 	std::thread socket_thread;
+	std::shared_ptr<MessageSocket> socket;
 
-    MessageThread(dc::Config config) {
-        socket_thread = std::thread([config]() {
-            MessageSocket socket(config);
-            socket.connect();
+    MessageThread(dc::Config config, std::function<void(const std::string&)> callback) {
+		socket = std::make_shared<MessageSocket>(config, callback);
+        socket_thread = std::thread([this]() {
+			socket->connect();
         });
-	}
+    }
+
+    ~MessageThread() {
+		socket->stop();
+		socket_thread.join();
+    }
 };
 
-int main() {
-	dc::Config cfg;
+class frame : public sciter::window {
+public:
+    frame() : window(SW_MAIN | SW_ENABLE_DEBUG) {}
 
-    MessageThread mt(cfg);
+    SOM_PASSPORT_BEGIN(frame)
+        SOM_FUNCS(
+            SOM_FUNC(nativeMessage)
+        )
+    SOM_PASSPORT_END
     
-    Settings settings;
-    settings.file_system_path = "./";
+    sciter::string nativeMessage() { return WSTR("test"); }
+    
+    template<typename... Args>
+    void call_func(const std::string& func_name, Args... args) {
+        sciter::value result;
+        sciter::sync::gui_thread_ctx::exec([this, func_name, args...]() {
+            constexpr size_t argc = sizeof...(Args);
+            sciter::value argv[argc > 0 ? argc : 1] = { sciter::value(args)... };
+            sciter::value result;
 
-    Config config;
-    config.resource_path_prefix = "resources/";
+            SciterCall(this->get_hwnd(), func_name.c_str(), argc, argv, &result);
+        });
+    }
 
-    auto app = App::Create(settings, config);
+    void post_message(const std::string& message) {
+        call_func("recvMessage", message);
+    }
+};
 
-    auto monitor = app->main_monitor();
+int uimain(std::function<int()> run) {
+    sciter::sync::gui_thread_ctx gui_ctx;
+    sciter::om::hasset<frame> pwin = new frame();
 
-    auto window = Window::Create(app->main_monitor(), 800, 600, false, kWindowFlags_Titled | kWindowFlags_Resizable);
+    dc::Config cfg;
 
-    window->SetTitle("Client");
+    frame* frame_ptr = pwin;
 
-    auto overlay = Overlay::Create(window, window->width(), window->height(), 0, 0);
+    MessageThread mt(cfg, [frame_ptr](const std::string& msg) {
+        frame_ptr->post_message(msg);
+    });
 
-    overlay->view()->LoadHTML(R"(
-        <html>
-            <body>
-                <h1>Hello, World!</h1>
-            </body>
-        </html>
-    )");
 
-    app->Run();
+	std::wstring path = L"file:///" + get_html();
+    pwin->load(path.c_str());
+    pwin->expand();
 
-    return 0;
+    return run();
 }

@@ -65,12 +65,12 @@ void Socket::send_json(const nlohmann::json& json) {
     ws.write(net::buffer(msg));
 }
 
-MessageSocket::MessageSocket(dc::Config config) 
-    : Socket(config), zlib_decomp(&ws), auth(MessageWebsocketAuth(config.token, &config.subscriptions)) {
+MessageSocket::MessageSocket(dc::Config config, std::function<void(const std::string&)> callback) 
+    : Socket(config), zlib_decomp(&ws), auth(MessageWebsocketAuth(config.token, &config.subscriptions)), on_message(callback) {
 }
 
 void MessageSocket::heartbeat(MessageWebsocketAuth* auth) {
-    while (true) {
+    while (running) {
         auto hbeat = auth->heartbeat;
         send_json(hbeat);
         std::this_thread::sleep_for(std::chrono::milliseconds(auth->heartbeat_interval));
@@ -78,36 +78,47 @@ void MessageSocket::heartbeat(MessageWebsocketAuth* auth) {
 }
 
 void MessageSocket::handle_connection() {
-    send_json(auth.verify);
-    nlohmann::json json = zlib_decomp.read_message();
-    auth.heartbeat_interval = json["d"]["heartbeat_interval"];
-    
-    heartbeat_thread = std::thread([this]() {
-        heartbeat(&this->auth);
-    });
-
-    send_json(auth.session);
-    send_json(auth.subscribe);
-    while (true) {
-        nlohmann::json msg = zlib_decomp.read_message();
-
-        if (msg.contains("d") && msg["d"].is_object() && msg["d"].contains("seq")) {
-            auth.set_sequence(msg["d"]["seq"]);
-        }
-
-        std::string event_type = "";
-        if (msg.contains("t") && msg["t"].is_string()) {
-            event_type = msg["t"].get<std::string>();
-        }
+    try {
+        send_json(auth.verify);
+        nlohmann::json json = zlib_decomp.read_message();
+        auth.heartbeat_interval = json["d"]["heartbeat_interval"];
         
-        if (event_type == "MESSAGE_CREATE") {
-            std::cout << msg["d"]["content"] << std::endl;
-        } else if (event_type == "MESSAGE_UPDATE") {
-            std::cout << msg["d"]["content"] << std::endl;
-        } else if (event_type == "MESSAGE_DELETE") {
-            //handle_message(msg["d"]);
+        heartbeat_thread = std::thread([this]() {
+            heartbeat(&this->auth);
+        });
+
+        send_json(auth.session);
+        send_json(auth.subscribe);
+        while (running) {
+            nlohmann::json msg = zlib_decomp.read_message();
+
+            if (msg.contains("d") && msg["d"].is_object() && msg["d"].contains("seq")) {
+                auth.set_sequence(msg["d"]["seq"]);
+            }
+
+            std::string event_type = "";
+            if (msg.contains("t") && msg["t"].is_string()) {
+                event_type = msg["t"].get<std::string>();
+            }
+            
+            if (event_type == "MESSAGE_CREATE") {
+                std::cout << msg["d"]["content"] << std::endl;
+				if (msg["d"]["content"] != "") {
+                    on_message(msg["d"]["content"]);
+                }
+            } else if (event_type == "MESSAGE_UPDATE") {
+                std::cout << msg["d"]["content"] << std::endl;
+            } else if (event_type == "MESSAGE_DELETE") {
+                //handle_message(msg["d"]);
+            }
+        }
+    } catch (const boost::system::system_error& e) {
+        if (e.code() != boost::asio::error::operation_aborted && e.code() != boost::beast::websocket::error::closed) {
+            std::cout << "Error: " << e.what() << std::endl;
         }
     }
+    running = false;
+	heartbeat_thread.join();
 }
 
 void Socket::connect() {
@@ -131,4 +142,10 @@ void Socket::connect() {
     } catch (const std::exception& e) {
         std::cout << "Error: " << e.what() << std::endl;
     }
+}
+
+void Socket::stop() {
+    running = false;
+	beast::error_code ec;
+	beast::get_lowest_layer(ws).close(ec);
 }
