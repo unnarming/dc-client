@@ -5,6 +5,7 @@
 #include <boost/beast/websocket/ssl.hpp>
 #include <boost/asio/ssl.hpp>
 #include <memory>
+#include <sciter-x.h>
 #include "config.h"
 #include <zlib.h>
 #include <thread>
@@ -60,9 +61,9 @@ struct MessageSocket : public Socket {
     std::thread heartbeat_thread;
 
     void heartbeat(MessageWebsocketAuth* auth);
-	std::function<void(const std::string&)> on_message;
+	std::function<void(const std::string& func_name, std::vector<sciter::value> args)> on_message;
 
-    MessageSocket(dc::Config cfg, std::function<void(const std::string&)> callback);
+    MessageSocket(dc::Config cfg,  std::function<void(const std::string& func_name, std::vector<sciter::value> args)> callback);
 
     void handle_connection() override;
 };

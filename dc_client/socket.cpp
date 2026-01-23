@@ -65,7 +65,7 @@ void Socket::send_json(const nlohmann::json& json) {
     ws.write(net::buffer(msg));
 }
 
-MessageSocket::MessageSocket(dc::Config config, std::function<void(const std::string&)> callback) 
+MessageSocket::MessageSocket(dc::Config config, std::function<void(const std::string&, std::vector<sciter::value>)> callback) 
     : Socket(config), zlib_decomp(&ws), auth(MessageWebsocketAuth(config.token, &config.subscriptions)), on_message(callback) {
 }
 
@@ -102,12 +102,26 @@ void MessageSocket::handle_connection() {
             }
             
             if (event_type == "MESSAGE_CREATE") {
-                std::cout << msg["d"]["content"] << std::endl;
-				if (msg["d"]["content"] != "") {
-                    on_message(msg["d"]["content"]);
+                if (msg["d"]["content"].is_string() && msg["d"]["content"] != "") {
+                    std::cout << msg["d"]["content"] << std::endl;
+					std::string content = msg["d"]["content"].get<std::string>();
+					std::string name = msg["d"]["author"]["username"].get<std::string>();
+                    std::string avatar_url;
+                    if (msg["d"]["author"]["avatar"].is_string()) {
+                        avatar_url = "https://cdn.discordapp.com/avatars/" + msg["d"]["author"]["id"].get<std::string>() + "/" + msg["d"]["author"]["avatar"].get<std::string>() + ".webp";
+                    } else {
+                        avatar_url = "https://cdn.discordapp.com/embed/avatars/0.png";
+                    }
+                    std::string id = msg["d"]["id"].get<std::string>();
+                    on_message("recvMessageFromUser", { sciter::value(name), sciter::value(avatar_url), sciter::value(content), sciter::value(id) });
                 }
             } else if (event_type == "MESSAGE_UPDATE") {
-                std::cout << msg["d"]["content"] << std::endl;
+                if (msg["d"]["content"].is_string() && msg["d"]["content"] != "") {
+                    std::cout << msg["d"]["content"] << std::endl;
+                    std::string content = msg["d"]["content"].get<std::string>();
+                    std::string id = msg["d"]["id"].get<std::string>();
+                    on_message("updateMessage", { sciter::value(id), sciter::value(content) });
+                }
             } else if (event_type == "MESSAGE_DELETE") {
                 //handle_message(msg["d"]);
             }
